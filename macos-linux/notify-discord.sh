@@ -26,16 +26,17 @@ TPATH="$(norm "$(printf '%s' "$RAW" | jq -r '.transcript_path // empty' 2>/dev/n
 NOTIF_TYPE="$(printf '%s' "$RAW" | jq -r '.notification_type // empty' 2>/dev/null || true)"
 if [ -n "$CWD" ]; then PROJECT="$(basename "$CWD")"; else PROJECT="$(basename "$PWD")"; fi
 
-# Ping ONLY when Claude genuinely needs input. notification_type is the
+# Ping ONLY when Claude is actively BLOCKED needing you. notification_type is the
 # authoritative signal (do NOT grep $DETAIL text -- it is dynamic / localized).
-# Allowed: tool-permission prompts, MCP elicitation dialogs, and the idle
-# "waiting for your input" prompt. Everything else (auth_success,
-# elicitation_complete/response, computer_use_*, push_notification) is
-# informational -> skip. Stop is no longer wired (turn-end != needs-input);
-# this gate is defense-in-depth behind the settings matcher.
+# Allowed: tool-permission prompts (incl. AskUserQuestion and plan-mode, which
+# surface as permission_prompt) and MCP elicitation dialogs. Everything else is
+# skipped -- notably idle_prompt (the ~60s your-turn nudge), auth_success,
+# elicitation_complete/response, computer_use_*, push_notification. (To also get
+# the idle nudge, add idle_prompt below AND to the settings matcher.) Stop is not
+# wired (turn-end != needs-input); this gate is defense-in-depth.
 if [ "$EVENT" = "Notification" ] && [ -n "$NOTIF_TYPE" ]; then
   case "$NOTIF_TYPE" in
-    permission_prompt|worker_permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog) ;;
+    permission_prompt|worker_permission_prompt|elicitation_dialog|elicitation_url_dialog) ;;
     *) exit 0 ;;
   esac
 fi

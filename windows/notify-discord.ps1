@@ -42,14 +42,17 @@ if ($raw) {
     } catch { }
 }
 
-# Ping ONLY when Claude genuinely needs input. For the Notification hook the
-# authoritative signal is notification_type (do NOT match on $detail text -- it
-# is dynamic / localized). Allowed: tool-permission prompts, MCP elicitation
-# dialogs, and the idle "waiting for your input" prompt. Everything else
-# (auth_success, elicitation_complete/response, computer_use_*, push_notification)
-# is informational -> skip. The Stop hook is no longer wired (turn-end is NOT a
-# needs-input signal); this gate is defense-in-depth behind the settings matcher.
-$needsInput = @('permission_prompt', 'worker_permission_prompt', 'idle_prompt', 'elicitation_dialog', 'elicitation_url_dialog')
+# Ping ONLY when Claude is actively BLOCKED needing you. For the Notification
+# hook the authoritative signal is notification_type (do NOT match on $detail
+# text -- it is dynamic / localized). Allowed: tool-permission prompts (incl.
+# AskUserQuestion and plan-mode, which surface as permission_prompt) and MCP
+# elicitation dialogs. Everything else is skipped -- notably idle_prompt (the
+# ~60s "waiting for your input" your-turn nudge), plus auth_success,
+# elicitation_complete/response, computer_use_*, push_notification. (To also get
+# the idle nudge, add 'idle_prompt' here AND to the settings matcher.) The Stop
+# hook is not wired (turn-end is NOT needs-input); this gate is defense-in-depth
+# behind the settings matcher.
+$needsInput = @('permission_prompt', 'worker_permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog')
 if ($Event -eq 'Notification' -and $notificationType -and ($needsInput -notcontains $notificationType)) { exit 0 }
 
 # --- helpers ----------------------------------------------------------------

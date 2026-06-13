@@ -11,8 +11,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Hook stdin is UTF-8; set it before reading so non-ASCII detail text decodes right.
-try { [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false } catch { }
+# (stdin is read as UTF-8 explicitly below, where $raw is assigned)
 
 # Portable home -> ~/.claude (works on Windows, macOS, Linux).
 $base = if ($HOME) { "$HOME" } else { "$env:USERPROFILE" }
@@ -26,7 +25,15 @@ if (-not (Test-Path $webhookFile)) { exit 0 }
 $webhookUrl = (Get-Content $webhookFile -Raw).Trim()
 if (-not $webhookUrl) { exit 0 }
 
-$raw = ($input | Out-String)
+# Read the hook payload from stdin as UTF-8. Reliable on Windows PowerShell 5.1
+# AND pwsh 7+. Do NOT use ($input | Out-String): on PS 5.1 it decodes stdin in
+# the legacy OEM codepage, garbling em-dashes/accents/emoji (an em-dash becomes
+# three junk characters). [Console]::InputEncoding is applied too late to fix it.
+$raw = ''
+try {
+    $__stdin = New-Object System.IO.StreamReader([Console]::OpenStandardInput(), (New-Object System.Text.UTF8Encoding $false))
+    $raw = $__stdin.ReadToEnd(); $__stdin.Dispose()
+} catch { $raw = '' }
 $projectName = Split-Path -Leaf (Get-Location)
 $detail = ''
 $transcriptPath = ''

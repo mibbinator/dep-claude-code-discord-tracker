@@ -2,8 +2,7 @@
 
 This guide sets up Claude Code so it **sends you a Discord message (with a real ping/notification)** whenever it:
 
-- 🔔 **needs your input** — a permission prompt or a question (the `Notification` event), and
-- ✅ **finishes its turn** — done responding, waiting for your next message (the `Stop` event).
+- 🔔 **needs your input** — a permission prompt, a question, or genuinely waiting at the prompt. Detected via the `Notification` event gated on its `notification_type`, so it fires **only** when Claude actually needs you — not on every turn-end. (There is intentionally **no `Stop` hook** — see Step D.)
 
 It works by using **Claude Code hooks** (commands Claude runs automatically at certain points) plus a **Discord webhook** (a "post into this channel" URL). No bot, no token, no server to host.
 
@@ -140,19 +139,9 @@ Your settings file is `~/.claude/settings.json`. **If it already exists, merge**
 ```json
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/notify-discord.sh\" Stop YOUR_USER_ID",
-            "async": true
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
+        "matcher": "permission_prompt|worker_permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog",
         "hooks": [
           {
             "type": "command",
@@ -166,10 +155,11 @@ Your settings file is `~/.claude/settings.json`. **If it already exists, merge**
 }
 ```
 
-Replace **both** `YOUR_USER_ID` values with your Discord user ID.
+Replace `YOUR_USER_ID` with your Discord user ID.
 
-- Want pings **only** for permission prompts (not every turn-end)? Delete the ` YOUR_USER_ID` from the **Stop** command (leave the word `Stop`). It'll still post a message, just without a ping.
-- Want no turn-end message at all? Remove the entire `"Stop"` array.
+- There is intentionally **no `Stop` hook**. Stop fires at the end of *every* turn (including phase boundaries and background-workflow steps), so it pings when Claude is not actually waiting — and it double-pings alongside the real "needs input" Notification. Only the `Notification` hook means Claude needs you.
+- The `matcher` whitelists the `notification_type` values that mean Claude is genuinely blocked on you: tool **permission** prompts, MCP **elicitation** dialogs, and the **idle** "waiting for your input" prompt. It deliberately drops informational types (`auth_success`, `elicitation_complete`/`elicitation_response`, `computer_use_*`, `push_notification`).
+- Want pings **only** for hard blocks (drop the 60s idle reminder)? Remove `idle_prompt` from the `matcher`.
 
 Then **[reload Claude Code](#activating-the-hooks)**.
 
@@ -259,20 +249,9 @@ Your settings file is `%USERPROFILE%\.claude\settings.json`. **If it already exi
 ```json
 {
   "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "shell": "powershell",
-            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord.ps1\" -Event Stop -UserId YOUR_USER_ID",
-            "async": true
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
+        "matcher": "permission_prompt|worker_permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog",
         "hooks": [
           {
             "type": "command",
@@ -287,10 +266,11 @@ Your settings file is `%USERPROFILE%\.claude\settings.json`. **If it already exi
 }
 ```
 
-Replace **both** `YOUR_USER_ID` values with your Discord user ID.
+Replace `YOUR_USER_ID` with your Discord user ID.
 
-- Want pings **only** for permission prompts? Delete ` -UserId YOUR_USER_ID` from the **Stop** command.
-- Want no turn-end message at all? Remove the entire `"Stop"` array.
+- There is intentionally **no `Stop` hook**. Stop fires at the end of *every* turn (including phase boundaries and background-workflow steps), so it pings when Claude is not actually waiting — and it double-pings alongside the real "needs input" Notification. Only the `Notification` hook means Claude needs you.
+- The `matcher` whitelists the `notification_type` values that mean Claude is genuinely blocked on you: tool **permission** prompts, MCP **elicitation** dialogs, and the **idle** "waiting for your input" prompt. It deliberately drops informational types (`auth_success`, `elicitation_complete`/`elicitation_response`, `computer_use_*`, `push_notification`).
+- Want pings **only** for hard blocks (drop the 60s idle reminder)? Remove `idle_prompt` from the `matcher`.
 
 Then **[reload Claude Code](#activating-the-hooks)**.
 
@@ -343,7 +323,7 @@ Settings layer **user → project → local**, but hooks **don't override each o
 ## Customizing
 
 - **Edit the wording / emoji:** change the `$content` / `CONTENT` lines in the script.
-- **Mute turn-end pings but keep the message:** remove the user ID argument from the **Stop** hook command.
+- **Ping less / more eagerly when idle:** the idle notification (`notification_type` `idle_prompt`) fires after ~60s — tune `messageIdleNotifThresholdMs` in `settings.json` (default `60000`). To be pinged **only** for hard blocks (permission prompts / questions), drop `idle_prompt` from the `Notification` matcher.
 - **Turn everything off temporarily:** in `settings.json` set `"disableAllHooks": true`, or just delete the `"hooks"` block.
 - **Rotate your webhook:** if the URL ever leaks, delete the webhook in Discord, make a new one, and overwrite `~/.claude/discord_webhook.txt`. No other changes needed.
 
@@ -364,7 +344,7 @@ Settings layer **user → project → local**, but hooks **don't override each o
 
 ## How it works (for the curious)
 
-- **Hooks** are commands Claude Code runs at lifecycle events. The `Notification` event fires when Claude wants your input/permission; the `Stop` event fires when Claude finishes responding.
+- **Hooks** are commands Claude Code runs at lifecycle events. This setup uses only the `Notification` event (which fires when Claude wants your input/permission, an MCP elicitation, or has gone idle waiting), gated on `notification_type`. The `Stop` event (every turn-end) is deliberately not used — it isn't a needs-input signal.
 - Each hook pipes a small **JSON payload** to our script on stdin (it may include a `message` and `cwd`). The script reads it, formats a Discord message, and POSTs it to your **webhook**.
 - `allowed_mentions` is set to only your user ID, so the `<@id>` actually pushes a notification and nothing else (no accidental `@everyone`).
 - `"async": true` makes the hook run in the background so it never adds any delay to your Claude Code session.

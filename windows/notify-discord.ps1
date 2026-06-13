@@ -31,14 +31,26 @@ $projectName = Split-Path -Leaf (Get-Location)
 $detail = ''
 $transcriptPath = ''
 $cwd = ''
+$notificationType = ''
 if ($raw) {
     try {
         $payload = $raw | ConvertFrom-Json
-        if ($payload.message)         { $detail = "$($payload.message)" }
-        if ($payload.cwd)             { $projectName = Split-Path -Leaf $payload.cwd; $cwd = $payload.cwd }
-        if ($payload.transcript_path) { $transcriptPath = $payload.transcript_path }
+        if ($payload.message)           { $detail = "$($payload.message)" }
+        if ($payload.cwd)               { $projectName = Split-Path -Leaf $payload.cwd; $cwd = $payload.cwd }
+        if ($payload.transcript_path)   { $transcriptPath = $payload.transcript_path }
+        if ($payload.notification_type) { $notificationType = "$($payload.notification_type)" }
     } catch { }
 }
+
+# Ping ONLY when Claude genuinely needs input. For the Notification hook the
+# authoritative signal is notification_type (do NOT match on $detail text -- it
+# is dynamic / localized). Allowed: tool-permission prompts, MCP elicitation
+# dialogs, and the idle "waiting for your input" prompt. Everything else
+# (auth_success, elicitation_complete/response, computer_use_*, push_notification)
+# is informational -> skip. The Stop hook is no longer wired (turn-end is NOT a
+# needs-input signal); this gate is defense-in-depth behind the settings matcher.
+$needsInput = @('permission_prompt', 'worker_permission_prompt', 'idle_prompt', 'elicitation_dialog', 'elicitation_url_dialog')
+if ($Event -eq 'Notification' -and $notificationType -and ($needsInput -notcontains $notificationType)) { exit 0 }
 
 # --- helpers ----------------------------------------------------------------
 function Get-UsageTokens($u) {
@@ -153,7 +165,8 @@ $usage = Get-RealUsage
 
 if ($Event -eq 'Notification') {
     $glyph = [System.Char]::ConvertFromUtf32(0x1F514); $color = 15844367   # bell / amber
-    $title = "$glyph  Needs your input"
+    if ($notificationType -like '*permission_prompt') { $title = "$glyph  Needs your permission" }
+    else { $title = "$glyph  Needs your input" }
     $desc  = if ($detail) { $detail } else { 'Claude is waiting for your input.' }
 } else {
     $glyph = [System.Char]::ConvertFromUtf32(0x2705);  $color = 3066993    # check / green

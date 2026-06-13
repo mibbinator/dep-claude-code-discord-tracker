@@ -2,7 +2,7 @@
 
 Get **Discord notifications** from [Claude Code](https://claude.com/claude-code) using hooks + webhooks — no bot, no token, no server to host. Two independent feeds:
 
-- 🔔 **Ping feed** — pings you (real @-mention) when Claude **needs your input** or **finishes its turn**, with a rich embed showing your **official usage** (5-hour + weekly %, straight from the same endpoint `/usage` uses) and the token cost of the last prompt.
+- 🔔 **Ping feed** — pings you (real @-mention) **only when Claude actually needs your input** — a permission prompt, a question, or genuinely waiting at the prompt (gated on `notification_type`, so no turn-end / phase / workflow spam). The embed shows your **official usage** (5-hour + weekly %, straight from the same endpoint `/usage` uses) and the token cost of the last prompt.
 - 📋 **Activity feed** — a separate, **no-ping** channel that streams what's happening: your prompts, subagents starting/finishing (task → model → tools used → result), `ultracode` workflow results, and Claude's messages — each tagged with the project directory, model, effort, and a timestamp.
 
 Two implementations with the same behavior:
@@ -45,7 +45,7 @@ printf '%s' 'PASTE_ACTIVITY_WEBHOOK_URL' > ~/.claude/discord_activity_webhook.tx
 (You can point both files at the same webhook if you want everything in one channel.)
 
 ### 3. Add the hooks to `settings.json`
-Merge the `"hooks"` block from the matching `settings.example.json` ([windows](windows/settings.example.json) / [macos-linux](macos-linux/settings.example.json)) into `~/.claude/settings.json` (create it if missing). **Replace `YOUR_DISCORD_USER_ID`** with your ID. If you only want the ping feed, just include the `Stop` and `Notification` hooks.
+Merge the `"hooks"` block from the matching `settings.example.json` ([windows](windows/settings.example.json) / [macos-linux](macos-linux/settings.example.json)) into `~/.claude/settings.json` (create it if missing). **Replace `YOUR_DISCORD_USER_ID`** with your ID. If you only want the ping feed, just include the `Notification` hook.
 
 ### 4. Reload
 Open the **`/hooks`** menu once (reloads hook config) or restart Claude Code.
@@ -87,8 +87,8 @@ This is an **undocumented internal endpoint** and may change between Claude Code
 ---
 
 ## Customizing
-- **Mute the turn-end ping but keep the message:** remove ` -UserId …` (PowerShell) / ` YOUR_DISCORD_USER_ID` (bash) from the **Stop** hook command.
-- **No turn-end message at all:** delete the `Stop` hook.
+- **Ping only on hard blocks (no idle nudge):** drop `idle_prompt` from the `Notification` `matcher` (and the script allowlist) — you'll be pinged only for permission prompts and questions/elicitation.
+- **Tune the idle delay:** the `idle_prompt` ping fires after ~60s idle; set `messageIdleNotifThresholdMs` in `settings.json` (default `60000`) to taste.
 - **Only the ping feed:** omit the activity hooks (`UserPromptSubmit`, `SubagentStart`, `SubagentStop`, `PostToolUse`, `MessageDisplay`).
 - **Everything in one channel:** point both webhook files at the same URL.
 

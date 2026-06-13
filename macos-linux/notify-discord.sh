@@ -23,7 +23,22 @@ norm() { printf '%s' "$1" | tr '\\' '/'; }   # tolerate Windows-style paths
 CWD="$(printf '%s' "$RAW"   | jq -r '.cwd // empty' 2>/dev/null || true)"
 DETAIL="$(printf '%s' "$RAW" | jq -r '.message // empty' 2>/dev/null || true)"
 TPATH="$(norm "$(printf '%s' "$RAW" | jq -r '.transcript_path // empty' 2>/dev/null || true)")"
+NOTIF_TYPE="$(printf '%s' "$RAW" | jq -r '.notification_type // empty' 2>/dev/null || true)"
 if [ -n "$CWD" ]; then PROJECT="$(basename "$CWD")"; else PROJECT="$(basename "$PWD")"; fi
+
+# Ping ONLY when Claude genuinely needs input. notification_type is the
+# authoritative signal (do NOT grep $DETAIL text -- it is dynamic / localized).
+# Allowed: tool-permission prompts, MCP elicitation dialogs, and the idle
+# "waiting for your input" prompt. Everything else (auth_success,
+# elicitation_complete/response, computer_use_*, push_notification) is
+# informational -> skip. Stop is no longer wired (turn-end != needs-input);
+# this gate is defense-in-depth behind the settings matcher.
+if [ "$EVENT" = "Notification" ] && [ -n "$NOTIF_TYPE" ]; then
+  case "$NOTIF_TYPE" in
+    permission_prompt|worker_permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog) ;;
+    *) exit 0 ;;
+  esac
+fi
 
 # --- tokens used by the current prompt (since the last human message) -------
 PROMPT_TOKENS=0
@@ -77,7 +92,10 @@ fi
 FOLDER="📁"
 if [ "$EVENT" = "Notification" ]; then
   GLYPH="🔔"; COLOR=15844367
-  TITLE="$GLYPH  Needs your input"
+  case "$NOTIF_TYPE" in
+    *permission_prompt) TITLE="$GLYPH  Needs your permission" ;;
+    *)                  TITLE="$GLYPH  Needs your input" ;;
+  esac
   DESC="${DETAIL:-Claude is waiting for your input.}"
 else
   GLYPH="✅"; COLOR=3066993

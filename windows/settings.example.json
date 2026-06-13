@@ -1,0 +1,26 @@
+{
+  "_comment": "Merge the hooks block below into %USERPROFILE%\\.claude\\settings.json. Replace YOUR_DISCORD_USER_ID with your numeric Discord user ID (or remove ' -UserId YOUR_DISCORD_USER_ID' from a hook to post without pinging). The activity hooks need no user ID (that feed never pings).",
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord.ps1\" -Event Stop -UserId YOUR_DISCORD_USER_ID", "async": true } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord.ps1\" -Event Notification -UserId YOUR_DISCORD_USER_ID", "async": true } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind UserPrompt", "async": true } ] }
+    ],
+    "SubagentStart": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind SubagentStart", "async": true } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind SubagentStop", "async": true } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Workflow", "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind Workflow", "async": true } ] }
+    ],
+    "MessageDisplay": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind Message", "async": true } ] }
+    ]
+  }
+}

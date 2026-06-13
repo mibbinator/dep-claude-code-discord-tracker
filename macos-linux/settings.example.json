@@ -1,0 +1,26 @@
+{
+  "_comment": "Merge the hooks block below into ~/.claude/settings.json. Replace YOUR_DISCORD_USER_ID with your numeric Discord user ID (or remove ' YOUR_DISCORD_USER_ID' from a hook to post without pinging). The activity hooks need no user ID (that feed never pings). Requires bash, curl, and jq on the machine.",
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord.sh\" Stop YOUR_DISCORD_USER_ID", "async": true } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord.sh\" Notification YOUR_DISCORD_USER_ID", "async": true } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord-activity.sh\" UserPrompt", "async": true } ] }
+    ],
+    "SubagentStart": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord-activity.sh\" SubagentStart", "async": true } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord-activity.sh\" SubagentStop", "async": true } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Workflow", "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord-activity.sh\" Workflow", "async": true } ] }
+    ],
+    "MessageDisplay": [
+      { "hooks": [ { "type": "command", "command": "bash \"$HOME/.claude/notify-discord-activity.sh\" Message", "async": true } ] }
+    ]
+  }
+}

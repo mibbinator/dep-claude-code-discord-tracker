@@ -1,9 +1,10 @@
 # Claude Code → Discord notifier
 
-Get **Discord notifications** from [Claude Code](https://claude.com/claude-code) using hooks + webhooks — no bot, no token, no server to host. Two independent feeds:
+Get **Discord notifications** from [Claude Code](https://claude.com/claude-code) using hooks + webhooks — no bot, no token, no server to host. Three independent feeds:
 
 - 🔔 **Ping feed** — pings you (real @-mention) **only when Claude actually needs your input** — a permission prompt, a question, an MCP elicitation, or Claude going idle/stuck and waiting for your reply (the ~60s idle signal). Gated on `notification_type`, so it skips routine turn-ends and informational notices. The embed shows your **official usage** (5-hour + weekly %, straight from the same endpoint `/usage` uses) and the token cost of the last prompt.
 - 📋 **Activity feed** — a separate, **no-ping** channel that streams what's happening: your prompts, subagents starting/finishing (task → model → tools used → result), `ultracode` workflow results, and Claude's messages — each tagged with the project directory, model, effort, and a timestamp.
+- 📊 **Usage tracker** — posts a compact embed **every time your official usage crosses a new whole percent** (5-hour and weekly windows), so you can watch the limit climb ~1% at a time. **Silent** for routine ticks; **@-mentions you** when a window crosses a milestone (25 / 50 / 80 / 90 / 100%). Runs on `PostToolUse` + `Stop`, but only actually posts on a real crossing (last-posted % is cached in `~/.claude/discord_usage_pct_state.json`).
 
 Two implementations with the same behavior:
 
@@ -12,7 +13,7 @@ Two implementations with the same behavior:
 | **Windows** | [`windows/`](windows/) (`*.ps1`) | built-in Windows PowerShell 5.1 |
 | **macOS / Linux** | [`macos-linux/`](macos-linux/) (`*.sh`) | `bash` + `curl` + `jq` |
 
-> ⚠️ **No secrets in this repo.** The scripts read your webhook URLs from local files (`~/.claude/discord_webhook.txt`, `~/.claude/discord_activity_webhook.txt`) and never embed them. Treat those URLs like passwords — don't commit them anywhere.
+> ⚠️ **No secrets in this repo.** The scripts read your webhook URLs from local files (`~/.claude/discord_webhook.txt`, `~/.claude/discord_activity_webhook.txt`, `~/.claude/discord_usage_webhook.txt`) and never embed them. Treat those URLs like passwords — don't commit them anywhere.
 
 ---
 
@@ -28,21 +29,23 @@ Two implementations with the same behavior:
 ## Setup
 
 ### 1. Copy the scripts to `~/.claude/`
-- **Windows:** copy `windows\notify-discord.ps1` and `windows\notify-discord-activity.ps1` into `%USERPROFILE%\.claude\`.
-- **macOS/Linux:** copy `macos-linux/notify-discord.sh` and `macos-linux/notify-discord-activity.sh` into `~/.claude/`, then `chmod +x ~/.claude/notify-discord*.sh`.
+- **Windows:** copy `windows\notify-discord.ps1`, `windows\notify-discord-activity.ps1`, and `windows\notify-discord-usage.ps1` into `%USERPROFILE%\.claude\`. (Or just run `.\deploy.ps1`.)
+- **macOS/Linux:** copy `macos-linux/notify-discord.sh`, `macos-linux/notify-discord-activity.sh`, and `macos-linux/notify-discord-usage.sh` into `~/.claude/`, then `chmod +x ~/.claude/notify-discord*.sh`. (Or just run `bash deploy.sh`.)
 
 ### 2. Save your webhook URL(s)
 ```bash
 # macOS/Linux
 printf '%s' 'PASTE_PING_WEBHOOK_URL'     > ~/.claude/discord_webhook.txt
 printf '%s' 'PASTE_ACTIVITY_WEBHOOK_URL' > ~/.claude/discord_activity_webhook.txt   # optional (activity feed)
+printf '%s' 'PASTE_USAGE_WEBHOOK_URL'    > ~/.claude/discord_usage_webhook.txt      # optional (1% usage tracker)
 ```
 ```powershell
 # Windows (PowerShell)
 'PASTE_PING_WEBHOOK_URL'     | Set-Content "$env:USERPROFILE\.claude\discord_webhook.txt" -NoNewline
 'PASTE_ACTIVITY_WEBHOOK_URL' | Set-Content "$env:USERPROFILE\.claude\discord_activity_webhook.txt" -NoNewline
+'PASTE_USAGE_WEBHOOK_URL'    | Set-Content "$env:USERPROFILE\.claude\discord_usage_webhook.txt" -NoNewline
 ```
-(You can point both files at the same webhook if you want everything in one channel.)
+(You can point all three files at the same webhook if you want everything in one channel.)
 
 ### 3. Add the hooks to `settings.json`
 Merge the `"hooks"` block from the matching `settings.example.json` ([windows](windows/settings.example.json) / [macos-linux](macos-linux/settings.example.json)) into `~/.claude/settings.json` (create it if missing). **Replace `YOUR_DISCORD_USER_ID`** with your ID. If you only want the ping feed, just include the `Notification` hook.
@@ -83,6 +86,17 @@ The ping embed shows your **real** Claude usage by calling `GET https://api.anth
 - **macOS:** token read from the login **Keychain** (`security find-generic-password -s "Claude Code-credentials" -w`). If the usage line shows *"live usage unavailable"*, confirm that service name on your Mac.
 
 This is an **undocumented internal endpoint** and may change between Claude Code versions; if it ever stops working the embed simply omits usage and everything else keeps running. The token is only ever sent to `api.anthropic.com` (your own usage data).
+
+---
+
+## Usage tracker (1% feed)
+
+The 📊 usage tracker fires on `PostToolUse` (every tool) and `Stop`, reads the same official usage endpoint as the ping feed, and posts **only when `floor(utilization)` increases** for the 5-hour or weekly window — i.e. roughly once per percent. Each post shows a progress bar + both percentages; when a single step jumps more than 1% it shows `old% → new%`.
+
+- **State:** the last posted whole-% for each window lives in `~/.claude/discord_usage_pct_state.json`. The first run just establishes a baseline (no post). A window dropping (a reset) silently re-baselines.
+- **Milestones:** crossing into **25 / 50 / 80 / 90 / 100%** on either window @-mentions you (via `-UserId`); the embed turns amber, or red at 100%. Every other crossing posts silently.
+- **Webhook:** read from `~/.claude/discord_usage_webhook.txt` (point it at the same channel as another feed if you like).
+- **Tuning milestones:** edit the `$Milestones` / `MILESTONES` list at the top of `notify-discord-usage.{ps1,sh}`. To make it silent-only, drop `-UserId` from both hook commands.
 
 ---
 

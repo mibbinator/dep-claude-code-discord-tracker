@@ -1,5 +1,5 @@
 {
-  "_comment": "Merge the hooks block below into %USERPROFILE%\\.claude\\settings.json. Replace YOUR_DISCORD_USER_ID with your numeric Discord user ID (or remove ' -UserId YOUR_DISCORD_USER_ID' from a hook to post without pinging). The activity hooks need no user ID (that feed never pings). The Notification matcher whitelists the notification_type values that mean Claude needs you: tool/permission prompts (which also cover AskUserQuestion and plan-mode), MCP elicitation dialogs, and idle_prompt (the ~60s 'waiting for your input' signal for when Claude is finished/stuck and it's your turn). There is intentionally NO Stop hook (turn-end is not a needs-input signal). For hard-blocks-only, remove idle_prompt.",
+  "_comment": "Merge the hooks block below into %USERPROFILE%\\.claude\\settings.json. Replace YOUR_DISCORD_USER_ID with your numeric Discord user ID (or remove ' -UserId YOUR_DISCORD_USER_ID' from a hook to post without pinging). The activity hooks need no user ID (that feed never pings). The Notification matcher whitelists the notification_type values that mean Claude needs you: tool/permission prompts (which also cover AskUserQuestion and plan-mode), MCP elicitation dialogs, and idle_prompt (the ~60s 'waiting for your input' signal for when Claude is finished/stuck and it's your turn). The ping feed (notify-discord) is intentionally NOT on Stop (turn-end is not a needs-input signal); for hard-blocks-only, remove idle_prompt from its matcher. The usage tracker (notify-discord-usage) IS wired to PostToolUse (all tools) + Stop -- it posts only when official usage crosses a new whole percent (5h or weekly), silent except at milestones (25/50/80/90/100%) where it @-mentions you; it reads its webhook from ~/.claude/discord_usage_webhook.txt.",
   "hooks": {
     "Notification": [
       { "matcher": "permission_prompt|worker_permission_prompt|idle_prompt|elicitation_dialog|elicitation_url_dialog", "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord.ps1\" -Event Notification -UserId YOUR_DISCORD_USER_ID", "async": true } ] }
@@ -14,10 +14,14 @@
       { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind SubagentStop", "async": true } ] }
     ],
     "PostToolUse": [
-      { "matcher": "Workflow", "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind Workflow", "async": true } ] }
+      { "matcher": "Workflow", "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind Workflow", "async": true } ] },
+      { "matcher": "*", "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-usage.ps1\" -UserId YOUR_DISCORD_USER_ID", "async": true } ] }
     ],
     "MessageDisplay": [
       { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-activity.ps1\" -Kind Message", "async": true } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "shell": "powershell", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File \"$env:USERPROFILE\\.claude\\notify-discord-usage.ps1\" -UserId YOUR_DISCORD_USER_ID", "async": true } ] }
     ]
   }
 }

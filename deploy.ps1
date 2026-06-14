@@ -4,4 +4,5 @@ $ErrorActionPreference = 'Stop'
 $dest = Join-Path $HOME '.claude'
 Copy-Item -Force (Join-Path $PSScriptRoot 'windows\notify-discord.ps1')          $dest
 Copy-Item -Force (Join-Path $PSScriptRoot 'windows\notify-discord-activity.ps1') $dest
+Copy-Item -Force (Join-Path $PSScriptRoot 'windows\notify-discord-usage.ps1')    $dest
 Write-Host "Deployed Windows scripts to $dest  (open /hooks once or restart Claude Code to reload)"

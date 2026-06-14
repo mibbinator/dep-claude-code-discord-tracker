@@ -1,6 +1,8 @@
 # Never commit secrets or local state. The scripts read these from ~/.claude/.
 discord_webhook.txt
 discord_activity_webhook.txt
+discord_usage_webhook.txt
+discord_usage_pct_state.json
 .credentials.json
 discord_notify_count.txt
 discord_window_anchor.txt

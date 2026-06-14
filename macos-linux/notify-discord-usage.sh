@@ -107,6 +107,17 @@ BODY="$(jq -n \
           | if $h > 0 then "\($h)h \($m)m" else "\($m)m" end
         end
     end;
+  # Weekly reset can be days out -- format in days + hours (e.g. "3d 1h").
+  def resetinwk($iso):
+    if ($iso == null or $iso == "") then "" else
+      ($iso | sub("\\.[0-9]+";"") | sub("\\+00:00$";"Z"))
+      | (try fromdateiso8601 catch null) as $t
+      | if $t == null then "" else
+          ((($t - now) | if . < 0 then 0 else . end)) as $r
+          | (($r/86400)|floor) as $d | ((($r%86400)/3600)|floor) as $h | ((($r%3600)/60)|floor) as $m
+          | if $d > 0 then "\($d)d \($h)h" elif $h > 0 then "\($h)h \($m)m" else "\($m)m" end
+        end
+    end;
   def winline($label; $old; $new; $crossed):
     if ($crossed == 1 and ($new - $old) > 1)
     then "**\($old)% → \($new)%**  " + $label
@@ -114,7 +125,7 @@ BODY="$(jq -n \
   ( bar($cur5) + "  " + winline("used (5h window)"; $prev5; $cur5; $crossed5)
     + "\n" + bar($cur7) + "  " + winline("used (weekly)"; $prev7; $cur7; $crossed7) ) as $desc
   | ( [ {name:"5h resets in", value: resetin($usage.five_hour.resets_at), inline:true},
-        {name:"Weekly resets in", value: resetin($usage.seven_day.resets_at), inline:true} ]
+        {name:"Weekly resets in", value: resetinwk($usage.seven_day.resets_at), inline:true} ]
       | map(select(.value != "")) ) as $fields
   | { embeds: [ {
         color: $color,

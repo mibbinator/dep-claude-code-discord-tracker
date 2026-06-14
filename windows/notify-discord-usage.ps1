@@ -55,6 +55,19 @@ function Reset-In([string]$iso) {
         if ($h -gt 0) { return "${h}h $($rem.Minutes)m" } else { return "$($rem.Minutes)m" }
     } catch { return '' }
 }
+# Weekly reset can be days out -- format in days + hours (e.g. "3d 1h") rather
+# than a large hour count.
+function Reset-In-Weekly([string]$iso) {
+    if (-not $iso) { return '' }
+    try {
+        $rem = ([datetimeoffset]::Parse($iso)).UtcDateTime - (Get-Date).ToUniversalTime()
+        if ($rem.TotalSeconds -lt 0) { return 'now' }
+        $d = [int][math]::Floor($rem.TotalDays)
+        if ($d -gt 0) { return "${d}d $($rem.Hours)h" }
+        if ($rem.Hours -gt 0) { return "$($rem.Hours)h $($rem.Minutes)m" }
+        return "$($rem.Minutes)m"
+    } catch { return '' }
+}
 # Official usage from the same endpoint /usage calls, using the locally stored
 # OAuth token. Linux/Windows: ~/.claude/.credentials.json. macOS: Keychain.
 # Returns $null on any failure -> graceful skip (no post, state untouched).
@@ -143,7 +156,7 @@ $color = if ($ping) {
 $fields = @()
 $r5 = Reset-In $usage.five_hour.resets_at
 if ($r5) { $fields += @{ name = '5h resets in'; value = $r5; inline = $true } }
-$r7 = Reset-In $usage.seven_day.resets_at
+$r7 = Reset-In-Weekly $usage.seven_day.resets_at
 if ($r7) { $fields += @{ name = 'Weekly resets in'; value = $r7; inline = $true } }
 
 $embed = @{

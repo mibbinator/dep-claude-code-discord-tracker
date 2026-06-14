@@ -12,3 +12,5 @@ settings.local.json
 *.local.json
 # Remote-control config: holds your Discord channel + user ID. Local only.
 .claude-remote.json
+# Local working notes, not part of the deliverable.
+docs/

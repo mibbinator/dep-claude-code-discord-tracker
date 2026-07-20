@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# notify-discord-usage.sh -- posts a Discord embed every time OFFICIAL usage
-# crosses to a new whole percent (~"every 1% used"), for the 5h + weekly windows.
-# Silent by default; @-mentions the user when a crossing passes a milestone
-# (25/50/80/90/100%) on EITHER window. When a window RESETS it posts a separate,
-# highly-visible pinged message per window (5h and weekly independently), and
-# distinguishes a normal scheduled rollover from a MANUAL reset Anthropic applies
-# to everyone early (detected when usage drops while the prior reset time is still
-# in the future). Reads the official /api/oauth/usage data (the same endpoint
-# /usage uses), throttled to at most one API call per 5 min (cached), and
-# persists the last posted % + reset times between runs.
+# notify-discord-usage.sh -- posts a Discord embed each time usage crosses to a
+# new whole percent, for the 5h and weekly windows. Silent by default; pings on a
+# milestone crossing (25/50/80/90/100%) on either window.
+#
+# A window reset gets its own pinged message per window: a scheduled rollover, or
+# an early reset Anthropic applies to everyone (detected when usage drops while
+# the prior reset time is still in the future).
+#
+# Reads /api/oauth/usage (the endpoint /usage uses), throttled to one call per
+# 5 min, and persists the last posted % + reset times between runs.
 # macOS / Linux version. Requires: bash, curl, jq.
 # Usage (from a hook): notify-discord-usage.sh [discord_user_id]
 # Reads the hook's JSON payload on stdin (only used for the project name).

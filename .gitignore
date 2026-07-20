@@ -15,3 +15,6 @@ settings.local.json
 .claude-remote.json
 # Local working notes, not part of the deliverable.
 docs/
+# Local tool config and notes.
+CLAUDE.md
+.claude/

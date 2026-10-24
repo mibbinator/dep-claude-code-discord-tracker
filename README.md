@@ -1,4 +1,6 @@
-# Claude Code Discord notifier
+# Claude Code Discord notifier (DEPRECATED)
+
+This is a deprecated repo and will not be updated, just use Claude's discord plugin.
 
 Discord notifications from [Claude Code](https://claude.com/claude-code) using hooks and webhooks. No bot, no token, nothing to host. There are three independent feeds and you can run any combination of them.
 
